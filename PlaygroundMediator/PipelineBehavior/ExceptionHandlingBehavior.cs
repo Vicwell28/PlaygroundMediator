@@ -1,4 +1,5 @@
-﻿using MediatR;
+﻿using FluentValidation;
+using MediatR;
 using PlaygroundMediator.DTOs;
 
 namespace PlaygroundMediator.PipelineBehavior
@@ -22,6 +23,21 @@ namespace PlaygroundMediator.PipelineBehavior
                 var response = await next();
                 return response;
 
+            }
+            catch(ValidationException ex)
+            {
+                _logger.LogError(ex, "Excepción de validación en {RequestName}", typeof(TRequest).Name);
+
+                // Como TResponse hereda de BaseResponseDto, podemos construir uno
+                var errorResponse = new TResponse();
+
+                errorResponse.SetError(
+                    message: "Error de validación",
+                    errors: ex.Errors.Select(e => e.ErrorMessage).ToList(),
+                    code: "ERR-VALIDATION"
+                );
+
+                return errorResponse;
             }
             catch (Exception ex)
             {
