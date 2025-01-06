@@ -1,4 +1,6 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PlaygroundMediator.DTOs;
 using static PlaygroundMediator.Features.Products.Handlers.Commands.CreateProduct;
@@ -24,6 +26,8 @@ namespace PlaygroundMediator.Controllers
         // GET: api/Products
         // Retorna todos los productos
         [HttpGet]
+        //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+        [Authorize]
         [ProducesResponseType(typeof(ResponseDto<IEnumerable<ProductDto>>), 200)]
         public async Task<IActionResult> GetAll()
         {
@@ -39,6 +43,7 @@ namespace PlaygroundMediator.Controllers
 
         // GET: api/Products/{id}
         [HttpGet("{id}")]
+        [Authorize]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 200)]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 404)]
         public async Task<IActionResult> GetById(int id)
@@ -54,6 +59,7 @@ namespace PlaygroundMediator.Controllers
 
         // POST: api/Products
         [HttpPost]
+        [Authorize]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 201)]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 400)]
         public async Task<IActionResult> Create([FromBody] CreateProductCommand command)
@@ -69,6 +75,7 @@ namespace PlaygroundMediator.Controllers
 
         // PUT: api/Products/{id}
         [HttpPut("{id}")]
+        [Authorize]
         [ProducesResponseType(typeof(ResponseDto<bool>), 200)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 400)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 404)]
@@ -92,6 +99,7 @@ namespace PlaygroundMediator.Controllers
 
         // DELETE: api/Products/{id}
         [HttpDelete("{id}")]
+        [Authorize]
         [ProducesResponseType(typeof(ResponseDto<bool>), 200)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 404)]
         public async Task<IActionResult> Delete(int id)
@@ -107,6 +115,7 @@ namespace PlaygroundMediator.Controllers
 
         // GET: api/Products/search?searchTerm=apple&page=1&pageSize=3
         [HttpGet("search")]
+        [Authorize]
         [ProducesResponseType(typeof(SearchResponseDto<ProductDto>), 200)]
         public async Task<IActionResult> Search([FromQuery] string? searchTerm, [FromQuery] int page = 1, [FromQuery] int pageSize = 5)
         {
