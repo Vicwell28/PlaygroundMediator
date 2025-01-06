@@ -1,9 +1,9 @@
 using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using PlaygroundMediator.DTOs;
+using PlaygroundMediator.Extensions;
 using PlaygroundMediator.Features.Tokens.Handlers;
 using PlaygroundMediator.Features.Tokens.Handlers.Commands;
 using PlaygroundMediator.PipelineBehavior;
@@ -45,31 +45,87 @@ builder.Services.AddAuthentication(options =>
     // Manejo de eventos para personalizar las respuestas
     o.Events = new JwtBearerEvents
     {
-        // Se lanza cuando no hay token o es inválido => 401
-        OnChallenge = context =>
+        // OnAuthenticationFailed
+        OnAuthenticationFailed = async context =>
         {
+            // Ocurre cuando se encontró un token en la petición,
+            // pero falló la validación: firma inválida, token expirado, etc.
+
+            // Aquí NO tienes JwtBearerChallengeContext, sino AuthenticationFailedContext.
+            // Sí puedes "manejar" la respuesta manualmente.
+            //context.HandleResponse();
+
+            var response = new ResponseDto<string>();
+            response.SetError(
+                message: "Fallo la autenticación (token inválido o expirado).",
+                errors: new List<string> { context.Exception.Message },
+                statusCode: 401,
+                code: "AuthFailed"
+            );
+
+            var json = System.Text.Json.JsonSerializer.Serialize(response);
+
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsync(json);
+        },
+
+        // OnChallenge
+        OnChallenge = async context =>
+        {
+            // Se dispara cuando NO hay token o es claramente inválido
+            // y el framework está a punto de retornar 401 Unauthorized.
+            // Aquí, a diferencia de OnAuthenticationFailed, el token puede ni existir,
+            // o podría estar mal formado, etc.
             context.HandleResponse();
 
             var response = new ResponseDto<string>();
             response.SetError(
-                message: "No estás autorizado o tu token es inválido/expirado.",
+                message: "No estás autorizado o no se encontró el token.",
                 errors: new List<string> { "Token ausente o inválido" },
                 statusCode: 401,
                 code: "Unauthorized"
             );
 
-            // Armar JSON y responder con 401
             var json = System.Text.Json.JsonSerializer.Serialize(response);
+
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.ContentType = "application/json";
-            return context.Response.WriteAsync(json);
+            await context.Response.WriteAsync(json);
+        },
+
+        // OnForbidden
+        OnForbidden = async context =>
+        {
+            // Se dispara cuando el usuario sí está autenticado,
+            // pero NO tiene los permisos o roles necesarios => 403 Forbidden.
+            //
+            // Este contexto es ForbiddenContext y NO incluye HandleResponse().
+            // Aun así, puedes escribir la respuesta personalizada.
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/json";
+
+            var response = new ResponseDto<string>();
+            response.SetError(
+                message: "Acceso denegado, no tienes permisos para este recurso.",
+                errors: new List<string> { "Forbidden" },
+                statusCode: 403,
+                code: "Forbidden"
+            );
+
+            var json = System.Text.Json.JsonSerializer.Serialize(response);
+            await context.Response.WriteAsync(json);
         }
     };
 });
 
 
+
 // 4. Agregar Autorización
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddCustomAuthorizationPolicies();
+});
 
 // 5. Agregar controladores y Swagger
 builder.Services.AddControllers();

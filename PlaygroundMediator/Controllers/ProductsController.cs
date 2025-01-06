@@ -1,7 +1,7 @@
 ﻿using MediatR;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using PlaygroundMediator.Constants;
 using PlaygroundMediator.DTOs;
 using static PlaygroundMediator.Features.Products.Handlers.Commands.CreateProduct;
 using static PlaygroundMediator.Features.Products.Handlers.Commands.DeleteProduct;
@@ -26,15 +26,13 @@ namespace PlaygroundMediator.Controllers
         // GET: api/Products
         // Retorna todos los productos
         [HttpGet]
-        //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-        [Authorize]
+        [Authorize(Policy = PolicyNames.CanReadProducts)]
         [ProducesResponseType(typeof(ResponseDto<IEnumerable<ProductDto>>), 200)]
         public async Task<IActionResult> GetAll()
         {
             var query = new GetAllProductsQuery();
             var result = await _mediator.Send(query);
 
-            // Si falló, mandamos 400, de lo contrario 200 (OK)
             if (!result.IsSuccess)
                 return BadRequest(result);
 
@@ -43,7 +41,7 @@ namespace PlaygroundMediator.Controllers
 
         // GET: api/Products/{id}
         [HttpGet("{id}")]
-        [Authorize]
+        [Authorize(Policy = PolicyNames.CanReadProducts)]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 200)]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 404)]
         public async Task<IActionResult> GetById(int id)
@@ -59,7 +57,7 @@ namespace PlaygroundMediator.Controllers
 
         // POST: api/Products
         [HttpPost]
-        [Authorize]
+        [Authorize(Policy = PolicyNames.CanCreateProducts)]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 201)]
         [ProducesResponseType(typeof(ResponseDto<ProductDto>), 400)]
         public async Task<IActionResult> Create([FromBody] CreateProductCommand command)
@@ -69,13 +67,12 @@ namespace PlaygroundMediator.Controllers
             if (!result.IsSuccess)
                 return BadRequest(result);
 
-            // Retorna 201 (Created) con la ruta del recurso y el cuerpo con la data
             return CreatedAtAction(nameof(GetById), new { id = result.Data?.Id }, result);
         }
 
         // PUT: api/Products/{id}
         [HttpPut("{id}")]
-        [Authorize]
+        [Authorize(Policy = PolicyNames.CanUpdateProducts)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 200)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 400)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 404)]
@@ -93,13 +90,12 @@ namespace PlaygroundMediator.Controllers
             if (!result.IsSuccess)
                 return BadRequest(result);
 
-            // Si ok, retornamos 200
             return Ok(result);
         }
 
         // DELETE: api/Products/{id}
         [HttpDelete("{id}")]
-        [Authorize]
+        [Authorize(Policy = PolicyNames.IsAdmin)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 200)]
         [ProducesResponseType(typeof(ResponseDto<bool>), 404)]
         public async Task<IActionResult> Delete(int id)
@@ -115,16 +111,13 @@ namespace PlaygroundMediator.Controllers
 
         // GET: api/Products/search?searchTerm=apple&page=1&pageSize=3
         [HttpGet("search")]
-        [Authorize]
+        [Authorize(Policy = PolicyNames.CanReadProducts)]
         [ProducesResponseType(typeof(SearchResponseDto<ProductDto>), 200)]
         public async Task<IActionResult> Search([FromQuery] string? searchTerm, [FromQuery] int page = 1, [FromQuery] int pageSize = 5)
         {
             var query = new SearchProductsQuery(searchTerm, page, pageSize);
             var result = await _mediator.Send(query);
 
-            // Aun si no encontró nada, es un 200, pero con una lista vacía 
-            // Salvo que hayas decidido que "Sin resultados" es un error, 
-            // usualmente no es un error de negocio.
             return Ok(result);
         }
     }
